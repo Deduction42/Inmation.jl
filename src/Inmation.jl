@@ -1,5 +1,9 @@
 module Inmation
 
-# Write your package code here.
+include("core.jl")
+include("_InmationRawHistory.jl")
+
+export InmationCredentials, inmation_joinpath
+export InmationRawHistory
 
 end
