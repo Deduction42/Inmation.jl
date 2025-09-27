@@ -1,7 +1,7 @@
 name = "Inmation"
 uuid = "199f2b5a-048b-44cc-a037-5c92511205ff"
 authors = ["Ruben Gonzalez <ruben.carbonbased@gmail.com> and contributors"]
-version = "1.0.0-DEV"
+version = "0.0.1"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
