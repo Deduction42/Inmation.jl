@@ -6,8 +6,16 @@ Inmation response structures and conversions
     p :: String
     t :: Vector{Float64}
     v :: Vector{T}
-    q :: Vector{Int8}
+    q :: Vector{Int64}
 end
+
+const BOUND_MODE = (inner=0, outer=1, before=2, after=3)
+
+@kwdef mutable struct RawHistoryOptions
+    tagpath  :: String 
+    interval :: Pair{DateTime, DateTime}
+    boundmode :: Int = BOUND_MODE.inner
+end 
 
 struct RawHistoryResponse{T}
     data :: @NamedTuple{
@@ -23,13 +31,13 @@ struct RawHistoryResponse{T}
     }
 end
 
-function RawHistoryResponse{T}(credentials::InmationCredentials, tagpath::String, timerange::Pair{DateTime, DateTime}) where T
-    return RawHistoryResponse{T}(rawhistory(credentials, tagpath, timerange))
+function RawHistoryResponse{T}(credentials::InmationCredentials, options::RawHistoryOptions) where T
+    return RawHistoryResponse{T}(rawhistory(credentials, options))
 end
 RawHistoryResponse{T}(resp::HTTP.Messages.Response) where T = JSON3.read(resp.body, RawHistoryResponse{T}, parsequoted=true)
 
-function InmationRawHistory{T}(credentials::InmationCredentials, tagpath::String, timerange::Pair{DateTime, DateTime}) where T
-    return InmationRawHistory(RawHistoryResponse{T}(credentials, tagpath, timerange))
+function InmationRawHistory{T}(credentials::InmationCredentials, options::RawHistoryOptions) where T
+    return InmationRawHistory(RawHistoryResponse{T}(credentials, options))
 end
 InmationRawHistory(obj::RawHistoryResponse) = obj.data.historical_data.query_data[begin].items[begin]
 InmationRawHistory{T}(obj::RawHistoryResponse) where T = InmationRawHistory{T}(InmationRawHistory(obj))
@@ -41,14 +49,14 @@ function TimeRecords.TimeSeries(data::InmationRawHistory)
     return TimeSeries(0.001.*data.t, data.v)
 end 
 
-function InmationRawHistory(tag::String, data::TimeSeries)
-    return InmationRawHistory(p=tag, t=timestamps(data).*1000, v=values(data), q=zeros(Int8, length(timestamps(data))))
+function InmationRawHistory(tag::String, data::AbstractTimeSeries)
+    return InmationRawHistory(p=tag, t=timestamps(data).*1000, v=values(data), q=zeros(Int64, length(timestamps(data))))
 end
 
 #========================================================================================================
 Inmation API functions
 ========================================================================================================#
-function rawhistory(credentials::InmationCredentials, tagpath::String, timerange::Pair{DateTime, DateTime})
+function rawhistory(credentials::InmationCredentials, options::RawHistoryOptions)
     headers = [
         "Content-Type" => "application/json",
         "Accept" => "application/json",
@@ -56,16 +64,16 @@ function rawhistory(credentials::InmationCredentials, tagpath::String, timerange
         "password" => credentials.password,
     ]
     
-    query   = _rawhistory_query(tagpath, timerange)
+    query   = _rawhistory_query(options)
     histurl = credentials.url*"/api/v2/readrawhistoricaldata"
     request = HTTP.post(histurl, headers, query)
-    @info "Queried data (code = $(request.status)) over{$(string(timerange))} for {tag = $(tagpath)}"
+    @info "Queried data (code = $(request.status)) over{$(string(options.interval))} for {tag = $(options.tagpath)}"
 
     return request
 end
 
-function rawhistory2file(filename::String, credentials::InmationCredentials, tagpath::String, timerange::Pair{DateTime, DateTime})
-    request = rawhistory(credentials, tagpath, timerange)
+function rawhistory2file(filename::String, credentials::InmationCredentials, options::RawHistoryOptions)
+    request = rawhistory(credentials, options)
     open(filename, "w") do fh
         JSON3.pretty(fh, String(request.body))
     end
@@ -80,11 +88,11 @@ function writehistory(credentials::InmationCredentials, data::InmationRawHistory
         "password" => credentials.password,
     ]
 
-    timerange = Pair(extrema(data.t)...)
+    daterange = Pair(map(ms->unix2datetime(ms/1000),  extrema(data.t))...)
     payload   = _writehistory_payload(data)
     histurl   = credentials.url*"/api/v2/write"
     request   = HTTP.post(histurl, headers, payload)
-    @info "Wrote data (code = $(request.status)) over{$(timerange)} for {tag = $(data.p)}"
+    @info "Wrote data (code = $(request.status)) over{$(daterange)} for {tag = $(data.p)}"
 
     return nothing
 end
@@ -92,14 +100,14 @@ end
 #========================================================================================================
 Helper functions
 ========================================================================================================#
-function _rawhistory_query(tagpath::String, timerange::Pair{DateTime, DateTime})
-    (start, stop) = extrema(timerange)
+function _rawhistory_query(options::RawHistoryOptions)
+    (start, stop) = extrema(options.interval)
 
     query = """
     {
       "items": [
         {
-          "p": "$(tagpath)"
+          "p": "$(options.tagpath)"
         }
       ],
       "start_time": "$(start).000Z",
@@ -110,7 +118,7 @@ function _rawhistory_query(tagpath::String, timerange::Pair{DateTime, DateTime})
         "t"
       ],
       "query_count_limit": 3000000,
-      "bounds": true
+      "bounds": $(options.boundmode)
     }
     """
 
