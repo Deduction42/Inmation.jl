@@ -19,12 +19,12 @@ end
 
 struct RawHistoryResponse{T}
     data :: @NamedTuple{
-        historical_data::@NamedTuple{
-            query_data::Vector{
+        historical_data :: @NamedTuple{
+            query_data :: Vector{
                 @NamedTuple{
-                    start_time::String,
-                    end_time::String,
-                    items::Vector{InmationRawHistory{T}}
+                    start_time :: String,
+                    end_time :: String,
+                    items :: Vector{InmationRawHistory{T}}
                 }
             }
         }
