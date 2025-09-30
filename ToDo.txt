@@ -1,0 +1,8 @@
+Roadmap:
+
+1.  Create an InmationRecord object containing the fields {t,v,p,q}
+    -   Define getindex(InmationRawHistory, ind) returning an InmationRecord
+    -   Define conversion between TimeRecord and InmationRecord
+
+2.  Bake-in chunk limits of 1000 to prevent "bricking" an Inamtion timeseries
+    -   getindex(InmationRawHistory, ind) should make this much easier

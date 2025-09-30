@@ -4,7 +4,7 @@ Inmation response structures and conversions
 ========================================================================================================#
 @kwdef struct InmationRawHistory{T}
     p :: String
-    t :: Vector{Float64}
+    t :: Vector{Int128}
     v :: Vector{T}
     q :: Vector{Int64}
 end
@@ -50,7 +50,7 @@ function TimeRecords.TimeSeries(data::InmationRawHistory)
 end 
 
 function InmationRawHistory(tag::String, data::AbstractTimeSeries)
-    return InmationRawHistory(p=tag, t=timestamps(data).*1000, v=values(data), q=zeros(Int64, length(timestamps(data))))
+    return InmationRawHistory(p=tag, t=round.(Int128, timestamps(data).*1000), v=values(data), q=zeros(Int64, length(timestamps(data))))
 end
 
 #========================================================================================================
