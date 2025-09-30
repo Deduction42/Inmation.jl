@@ -2,12 +2,19 @@
 #========================================================================================================
 Inmation response structures and conversions
 ========================================================================================================#
-@kwdef struct InmationRawHistory{T}
+@kwdef struct InmationRawHistory{T} <: AbstractVector{InmationRecord{T}}
     p :: String
     t :: Vector{Int128}
     v :: Vector{T}
     q :: Vector{Int64}
 end
+
+Base.firstindex(x::InmationRawHistory) = firstindex(x.t)
+Base.lastindex(x::InmationRawHistory) = lastindex(x.t)
+Base.getindex(x::InmationRawHistory, ind::Integer) = InmationRecord(x.p, x.t[ind], x.v[ind], x.q[ind])
+Base.getindex(x::InmationRawHistory, inds::AbstractVector{<:Integer}) = map(Base.Fix1(getindex, x), inds)
+Base.getindex(x::InmationRawHistory, ind::Colon) = getindex(x, firstindex(x):lastindex(x))
+Base.length(x::InmationRawHistory) = length(x.t)
 
 const BOUND_MODE = (inner=0, outer=1, before=2, after=3)
 
@@ -80,22 +87,7 @@ function rawhistory2file(filename::String, credentials::InmationCredentials, opt
     return nothing
 end
 
-function writehistory(credentials::InmationCredentials, data::InmationRawHistory{T}) where T
-    headers = [
-        "Content-Type" => "application/json",
-        "Accept" => "application/json",
-        "username" => credentials.username,
-        "password" => credentials.password,
-    ]
 
-    daterange = Pair(map(ms->unix2datetime(ms/1000),  extrema(data.t))...)
-    payload   = _writehistory_payload(data)
-    histurl   = credentials.url*"/api/v2/write"
-    request   = HTTP.post(histurl, headers, payload)
-    @info "Wrote data (code = $(request.status)) over{$(daterange)} for {tag = $(data.p)}"
-
-    return nothing
-end
 
 #========================================================================================================
 Helper functions
@@ -123,10 +115,4 @@ function _rawhistory_query(options::RawHistoryOptions)
     """
 
     return query
-end
-
-
-function _writehistory_payload(data::InmationRawHistory)
-    series = [(p=data.p, v=v, q=0, t=t) for (t,v) in zip(data.t, data.v)]
-    return JSON3.write((items=series,))
 end
