@@ -1,7 +1,6 @@
 using JSON3
 using HTTP
 using Dates
-using TimeRecords
 
 #========================================================================================================
 Credentials setup
@@ -22,24 +21,25 @@ inmation_joinpath(x...) = join(rstrip.(x,'/'), "/")
     q :: Int64
 end
 
-InmationRecord(p::String, tr::TimeRecord) = InmationRecord(p=p, t=round(Int128, timestamp(tr)*1000), v=value(tr), q=0)
-TimeRecord(ir::InmationRecord) = TimeRecord(0.001*ir.t, ir.v)
-
 #Divides history into chunks (by default, of 1000), and sends them individually
 function writehistory(credentials::InmationCredentials, data::AbstractVector{InmationRecord{T}}; chunksize=1000, verbose=true) where T
     if chunksize > 1000
-        @warn "Chunk size over 1000 not allowed"
+        @warn "Chunk size over 1000 not allowed, reducing chunk size to 1000"
         knots = 1:1000:length(data)
     else
-        knots = 1:chunksize:length(data)
+        knots = 1:floor(Int64, chunksize):length(data)
     end
 
+    #Write all chunks before the end
     for ii in firstindex(knots):(lastindex(knots)-1)
         chunk_ind = ii:(knots[ii+1]-1)
         _writechunk(credentials, data[chunk_ind], verbose=verbose)
     end
 
-    return _writechunk(credentials, data[lastindex(knots):end], verbose=verbose)
+    #Write the last chunk
+    _writechunk(credentials, data[lastindex(knots):end], verbose=verbose)
+
+    return nothing
 end
 
 #Writes a chunk directly without breaking to smaller pieces
