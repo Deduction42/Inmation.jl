@@ -32,12 +32,12 @@ function writehistory(credentials::InmationCredentials, data::AbstractVector{Inm
 
     #Write all chunks before the end
     for ii in firstindex(knots):(lastindex(knots)-1)
-        chunk_ind = ii:(knots[ii+1]-1)
+        chunk_ind = knots[ii]:(knots[ii+1]-1)
         _writechunk(credentials, data[chunk_ind], verbose=verbose)
     end
 
     #Write the last chunk
-    _writechunk(credentials, data[lastindex(knots):end], verbose=verbose)
+    _writechunk(credentials, data[knots[end]:end], verbose=verbose)
 
     return nothing
 end
@@ -52,11 +52,11 @@ function _writechunk(credentials::InmationCredentials, data::AbstractVector{<:In
     ]
 
     if length(data) > 1000
-        error("Not allowed to write history with more than 1000 elements")
+        error("Not allowed to write history with more than 1000 elements (recieved $(length(data)))")
     end
 
     tagname   = first(data).p
-    daterange = Pair(unix2datetime.(extrema(x-> x.t, data)./1000)...)
+    daterange = Pair( string.(unix2datetime.(extrema(x-> x.t, data)./1000))...)
     payload   = json_payload(data)
     histurl   = credentials.url*"/api/v2/write"
     request   = HTTP.post(histurl, headers, payload)
@@ -64,7 +64,7 @@ function _writechunk(credentials::InmationCredentials, data::AbstractVector{<:In
     if request.status != 200
         @warn "Failed to write data (code=$(request.status)) over {$(daterange)} for {tag = $(tagname)}"
     elseif verbose 
-        @info "Wrote data (code = $(request.status)) over{$(daterange)} for {tag = $(tagname)}"
+        @info "Wrote data (code = $(request.status)) over {$(daterange)} for {tag = $(tagname)}"
     end
     return nothing
 end
