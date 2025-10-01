@@ -49,16 +49,6 @@ end
 InmationRawHistory(obj::RawHistoryResponse) = obj.data.historical_data.query_data[begin].items[begin]
 InmationRawHistory{T}(obj::RawHistoryResponse) where T = InmationRawHistory{T}(InmationRawHistory(obj))
 
-#========================================================================================================
-Timeseries data compatability layer (Julia uses s since epoch, Inmation uses ms)
-========================================================================================================#
-function TimeRecords.TimeSeries(data::InmationRawHistory)
-    return TimeSeries(0.001.*data.t, data.v)
-end 
-
-function InmationRawHistory(tag::String, data::AbstractTimeSeries)
-    return InmationRawHistory(p=tag, t=round.(Int128, timestamps(data).*1000), v=values(data), q=zeros(Int64, length(timestamps(data))))
-end
 
 #========================================================================================================
 Inmation API functions
