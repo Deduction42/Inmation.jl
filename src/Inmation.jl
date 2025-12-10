@@ -1,5 +1,7 @@
 module Inmation
 
+# API Documentation
+# 
 include("core.jl")
 include("_InmationRawHistory.jl")
 include("_TimeSeries.jl")

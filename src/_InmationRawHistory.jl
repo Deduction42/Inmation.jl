@@ -1,3 +1,4 @@
+import JSON3.StructTypes
 
 #========================================================================================================
 Inmation response structures and conversions
@@ -8,13 +9,15 @@ Inmation response structures and conversions
     v :: Vector{T}
     q :: Vector{Int64}
 end
+StructTypes.StructType(::Type{<:InmationRawHistory}) = StructTypes.Struct()
 
 Base.firstindex(x::InmationRawHistory) = firstindex(x.t)
 Base.lastindex(x::InmationRawHistory) = lastindex(x.t)
-Base.getindex(x::InmationRawHistory, ind::Integer) = InmationRecord(x.p, x.t[ind], x.v[ind], x.q[ind])
+Base.getindex(x::InmationRawHistory{T}, ind::Integer) where T = InmationRecord{T}(x.p, x.t[ind], x.v[ind], x.q[ind])
 Base.getindex(x::InmationRawHistory, inds::AbstractVector{<:Integer}) = map(Base.Fix1(getindex, x), inds)
 Base.getindex(x::InmationRawHistory, ind::Colon) = getindex(x, firstindex(x):lastindex(x))
 Base.length(x::InmationRawHistory) = length(x.t)
+Base.size(x::InmationRawHistory) = size(x.t)
 
 const BOUND_MODE = (inner=0, outer=1, before=2, after=3)
 
@@ -44,11 +47,35 @@ end
 RawHistoryResponse{T}(resp::HTTP.Messages.Response) where T = JSON3.read(resp.body, RawHistoryResponse{T}, parsequoted=true)
 
 function InmationRawHistory{T}(credentials::InmationCredentials, options::RawHistoryOptions) where T
-    return InmationRawHistory(RawHistoryResponse{T}(credentials, options))
+    return InmationRawHistory{T}(RawHistoryResponse{Union{T,Nothing}}(credentials, options))
 end
-InmationRawHistory(obj::RawHistoryResponse) = obj.data.historical_data.query_data[begin].items[begin]
-InmationRawHistory{T}(obj::RawHistoryResponse) where T = InmationRawHistory{T}(InmationRawHistory(obj))
 
+function InmationRawHistory{T}(obj::RawHistoryResponse) where T
+    rawhistory = InmationRawHistory(obj)
+    if Nothing <: T 
+        return InmationRawHistory{T}(rawhistory)
+    else
+        discard_nothing!(rawhistory)
+        return InmationRawHistory{T}(
+            p = rawhistory.p,
+            t = rawhistory.t,
+            v = Vector{T}(rawhistory.v),
+            q = rawhistory.q
+        )
+    end
+end
+
+InmationRawHistory(obj::RawHistoryResponse) = obj.data.historical_data.query_data[begin].items[begin]
+
+function discard_nothing!(history::InmationRawHistory)
+    inds = map(!isnothing, history.v)
+
+    keepat!(history.q, inds)
+    keepat!(history.t, inds)
+    keepat!(history.v, inds)
+
+    return history
+end
 
 #========================================================================================================
 Inmation API functions

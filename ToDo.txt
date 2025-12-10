@@ -1,8 +1,11 @@
 Roadmap:
 
-1.  Create an InmationRecord object containing the fields {t,v,p,q}
-    -   Define getindex(InmationRawHistory, ind) returning an InmationRecord
-    -   Define conversion between TimeRecord and InmationRecord
+1.  Automated removal of "nothing" from the data if !(Nothing<:T)
+    - Extend type to be Union{T,Nothing} internally for parsing
+    - Run "keepat!" on indices where the value is not "nothing"
+    - Return object with original T 
 
-2.  Bake-in chunk limits of 1000 to prevent "bricking" an Inamtion timeseries
-    -   getindex(InmationRawHistory, ind) should make this much easier
+2.  Support querying for Units of Measure
+
+3.  Micrate to JSON.jl v1 
+    - Return support for InmationRawHistory <: AbstractVector
